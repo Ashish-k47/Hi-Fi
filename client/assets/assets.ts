@@ -544,11 +544,11 @@ export const dummyUsers = [
 
 export const dummyUserProfile = {
     _id: "current_user",
-    name: "GreatStack",
-    email: "greatstack@example.com",
-    handle: "greatstack",
-    avatar: "https://yt3.ggpht.com/SxtxAT2eoNsERZyC-2Q9t3YhFC0IPhlaYOFA8rciY3BkhfoR9VPAx5n8A8L6QNG3vjFXSsB7rQ=s240-c-k-c0x00ffffff-no-rj",
-    bio: "Hey there! I am using InstaChat.",
+    name: "Ishu",
+    email: "Ishu@example.com",
+    handle: "i_4_ashish",
+    avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVA_vQOY9K-FhNlsO0IdQW4L-YsCjU_QukwDP2-0vOCQ&s=10",
+    bio: "Hey there! I am using Hi-Fi👋 Chat.",
     isOnline: true,
     lastSeen: "2026-06-02T07:52:28.905Z",
 };
