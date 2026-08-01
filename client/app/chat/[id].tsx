@@ -1,7 +1,6 @@
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, FlatList, Image, TextInput, Alert } from 'react-native'
 import React, { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'expo-router'
-import { dummyConversationData, dummyMessages, dummyUserProfile, dummyUsers } from '../../assets/assets'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { styles } from '../../assets/styles/ChatScreen.styles'
 import { Ionicons } from '@expo/vector-icons'
@@ -11,29 +10,47 @@ import Avatar from '../../components/Avatar'
 import Bubble from '../../components/Bubble'
 import * as ImagePicker from "expo-image-picker"
 import { LinearGradient } from 'expo-linear-gradient'
+import { api, useApp } from '../../context/AppContext'
+import { Message } from '../../types'
 
 export default function ChatScreen() {
 
+  const {id} = useLocalSearchParams<{id: string }>()
+
   const router = useRouter()
-  let {auth, messages, users, selectedConversation, typingUsers} = {
-    auth:{user: dummyUserProfile},
-    messages: dummyMessages,
-    users: dummyUsers,
-    selectedConversation: dummyConversationData[0],
-    typingUsers:{
-      [dummyUsers[0]._id]: true,
-    }
-    
-  }
+  let {auth, messages, users, selectedConversation, setSelectedConversation, typingUsers, setConversations, setMessages, sendWsEvent} = useApp();
 
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(false)
   const [mediaUri, setMediaUri] = useState<string | null>(null)
+  const [mediaMime, setMediaMime] = useState<string>("image/jpeg")
+  const [mediaName, setMediaName] = useState<string>("media.jpg")
 
   const flatListRef = useRef<FlatList>(null)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const partner = selectedConversation?.participant;
+
+  // Load messages for this conversation 
+  useEffect(() =>{
+    if (!id) {
+      return;
+    }
+    setLoading(true)
+    const fetchMessages = ( attempt = 0)=>{
+      api.get(`/api/messages/conversations/${id}/messages`).then(({data}) =>{
+        if(data.success){
+          setMessages(data.messages);
+          setLoading(false)
+        }
+      }).catch(() => {
+        if (attempt < 5) setTimeout (() => fetchMessages(attempt +1), 1000* (attempt+1))
+          else setLoading(false)
+      })
+    }
+    fetchMessages();
+  },[id])
 
   //scroll to bottom when messages update
 
@@ -44,7 +61,27 @@ export default function ChatScreen() {
   },[messages])
 
   const deleteChat = ()=>{
+    const msg = 'Delete this chat? This cannot be undone.';
+    Alert.alert("Delete Chat", msg, [
+      {text: "Cancel", style: "cancel"},
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async ()=>{
+          try {
+            const {data} = await api.delete(`/api/messages/conversations/${selectedConversation?._id}`)
+            if (data.success) {
+              setConversations((prev) => prev.filter((c) => c._id !== selectedConversation?._id))
+              setSelectedConversation(null);
+              router.back();
 
+            }
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete chat");
+          }
+        }
+      }
+    ])
   }
 
   const pickMedia = async ()=>{
@@ -63,21 +100,54 @@ export default function ChatScreen() {
         if(!result.canceled && result.assets[0]){
           const asset = result.assets[0]
           setMediaUri(asset.uri)
+          setMediaMime(asset.mimeType || "image/jpeg");
+          setMediaName(asset.fileName || (asset.mimeType?.startsWith("video") ? "video.mp4" : "photo.jpg"))
         }
   }
 
-  const handleTyping = (val: string)=>{
-    setText(val)
-  }
+
 
   const send = async ()=>{
     if (!text.trim() && !mediaUri || !selectedConversation) return; 
     setSending(true)
-    setTimeout(()=>{
+    try {
+      const formData = new FormData();
+      formData.append("receiverId", partner!._id);
+      if(text.trim()) formData.append("text", text.trim());
+      if (mediaUri) {
+        formData.append("file", {uri: mediaUri, type: mediaMime, name:mediaName} as any)
+      }
+      const {data} = await api.post<{success: boolean; message: Message}>("/api/messages/send", formData, {headers:{
+        "Content-Type":"multipart/form-data"}
+      })
+
+
+      if (data.success) {
+        setMessages((prev) => [...prev, data.message]);
+        const target = {receiverId: partner!._id};
+        sendWsEvent({type: "message", ...target, payload: data.message})
+        setText("")
+        setMediaUri(null)
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.message || "Failed to send message");
+    }finally{
       setSending(false)
-      setText("")
-      setMediaUri(null)
-    },500)
+    }
+  }
+
+
+  const handleTyping = (val: string) =>{
+    setText(val)
+    const target = {receiverId: partner?._id};
+    if (!target.receiverId) return;
+
+    sendWsEvent({type: "typing", ...target, isTyping: true});
+
+    if(typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = setTimeout(() =>{
+    sendWsEvent({type: "typing", ...target, isTyping: false})
+  },1500)
   }
 
   const typingEntries = Object.entries(typingUsers).filter(([uid, isTyping])=>{
@@ -85,7 +155,7 @@ export default function ChatScreen() {
     return partner?._id === uid;
   })
 
-  if (!selectedConversation) {
+  if (!selectedConversation || !partner ) {
     return(
       <SafeAreaView style={styles.safe}>
         <TouchableOpacity style={styles.backBtn} onPress={()=>router.back()}>
@@ -96,7 +166,7 @@ export default function ChatScreen() {
           <Text style={styles.emptyText}>Conversation not found</Text>
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   const headerName = partner!.name;
@@ -105,8 +175,8 @@ export default function ChatScreen() {
 
 
   return (
-    <SafeAreaView style={styles.safe}>
-
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={()=>router.back()}>
@@ -138,7 +208,7 @@ export default function ChatScreen() {
       {/* Main */}
       <KeyboardAvoidingView style={styles.kav} behavior={Platform.OS === 'ios' ? 'padding' : "height"} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
 
-             {/* Messages */}
+            {/* Messages */}
 
              {loading ? (
               <ActivityIndicator style={{flex:1 }} color={Colors.primary}/>
@@ -160,7 +230,10 @@ export default function ChatScreen() {
               onContentSizeChange={()=> flatListRef.current?.scrollToEnd({animated: false})} />
 
         
-             )}
+            )}
+
+
+            
             {/* typing indicater */}
 
             {typingEntries.length > 0 && (
@@ -208,9 +281,9 @@ export default function ChatScreen() {
                     <LinearGradient colors={[Colors.primary, Colors.primaryContainer]}
                     style={[styles.sendBtn, !text.trim() && !mediaUri && styles.sendBtnDisabled]}>
                       {sending ? (
-                        <ActivityIndicator color="fff" size="small"/>
+                        <ActivityIndicator color="#fff" size="small"/>
                       ):(
-                        <Ionicons name='send' size={16} color="fff"/>
+                        <Ionicons name='send' size={16} color="#fff"/>
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
