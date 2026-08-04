@@ -3,6 +3,7 @@ import { IncomingMessage } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import User from "../models/User.js";
 import Conversation from "../models/Conversation.js";
+import Message from "../models/Message.js";
 
 
 //  Map userId -> WebSocket
@@ -42,7 +43,7 @@ export function initSocketServer(server: any) {
         // broadcast user is Online
         broadcastOnlineStatus(userId, true)
 
-        ws.on("message", (data: Buffer) => {
+        ws.on("message",async (data: Buffer) => {
             try {
                 const msg = JSON.parse(data.toString());
                 // Forward message to receiver(s)
@@ -74,6 +75,17 @@ export function initSocketServer(server: any) {
                         }
                     }
                 }
+
+                if (msg.type === "read") {
+                    const {conversationId} = msg;
+                    if (conversationId) {
+                        const updateResult = await Message.updateMany({conversationId, receiver: userId, read: false}, {read: true})
+                        if (updateResult.modifiedCount > 0) {
+                            await handleConversationEvent(userId, conversationId, {type: "message_read", conversationId})
+                        }
+                    }
+                }
+
             } catch (error: any) {
                 console.error("Error processing message:", error)
             }

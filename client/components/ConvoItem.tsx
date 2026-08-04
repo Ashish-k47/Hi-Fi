@@ -3,7 +3,7 @@ import { Conversation } from '@/types';
 import { Text, Touchable, TouchableOpacity, View } from 'react-native';
 import { styles } from '../assets/styles/ConvoItem.styles';
 import Avatar from './Avatar';
-import { formatTime } from '../utils/formatTime';
+import { formatTime, useLiveTime } from '../utils/formatTime';
 
 interface ConvoItemProps{
     convo: Conversation,
@@ -18,6 +18,7 @@ export default function ConvoItem({convo, selected, onPress } : ConvoItemProps) 
     const online = convo.participant?.isOnline;
     const sub = `@${convo.participant?.handle}`;
     const lastMsg = convo.lastMessage?.text || (convo.lastMessage?.mediaType === "image" ? "📸 Photo" : convo.lastMessage?.mediaUrl ? "🎥 Video" : "Start a conversation")
+    
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={[styles.row, selected && styles.rowSelected]}>
         <Avatar name={name} src={avatar} size={48} online={online}/>

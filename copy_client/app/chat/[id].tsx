@@ -112,12 +112,16 @@ export default function ChatScreen() {
     setSending(true)
     try {
       const formData = new FormData();
-      formData.append("receiverID", partner!._id);
+      formData.append("receiverId", partner!._id);
       if(text.trim()) formData.append("text", text.trim());
       if (mediaUri) {
         formData.append("file", {uri: mediaUri, type: mediaMime, name:mediaName} as any)
       }
-      const {data} = await api.post<{success: boolean; message: Message}>("/api/messages/send", formData)
+      const {data} = await api.post<{success: boolean; message: Message}>("/api/messages/send", formData, {headers:{
+        "Content-Type":"multipart/form-data"}
+      })
+
+
       if (data.success) {
         setMessages((prev) => [...prev, data.message]);
         const target = {receiverId: partner!._id};
@@ -204,7 +208,7 @@ export default function ChatScreen() {
       {/* Main */}
       <KeyboardAvoidingView style={styles.kav} behavior={Platform.OS === 'ios' ? 'padding' : "height"} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
 
-             {/* Messages */}
+            {/* Messages */}
 
              {loading ? (
               <ActivityIndicator style={{flex:1 }} color={Colors.primary}/>
@@ -226,7 +230,10 @@ export default function ChatScreen() {
               onContentSizeChange={()=> flatListRef.current?.scrollToEnd({animated: false})} />
 
         
-             )}
+            )}
+
+
+            
             {/* typing indicater */}
 
             {typingEntries.length > 0 && (

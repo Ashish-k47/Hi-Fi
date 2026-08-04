@@ -134,7 +134,11 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     }
 
     const messages = await Message.find({conversationId}).sort({createdAt: 1});
-    await Message.updateMany({conversationId, receiver: userId, read: false}, {read: true})
+
+    const updateResult = await Message.updateMany({conversationId, receiver: userId, read: false}, {read: true})
+    if (updateResult.modifiedCount > 0) {
+        await handleConversationEvent(userId, String(conversationId), {type: "message_read", conversationId})
+    }
 
     res.json({success: true, messages})
 }

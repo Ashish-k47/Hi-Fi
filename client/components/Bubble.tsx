@@ -34,6 +34,7 @@ export default function Bubble({msg, isMine} : BubbleProps) {
 }
 
 function BubbleContent ({msg, isMine}: {msg: Message; isMine: boolean}){
+    
     return(
        <View>
         {msg.mediaUrl && (
@@ -50,8 +51,9 @@ function BubbleContent ({msg, isMine}: {msg: Message; isMine: boolean}){
         )}
         {msg.text && <Text style={[styles.msgText, isMine ? styles.msgTextMe :styles.msgTextThem]}>{msg.text}</Text>}
 
+        
         <View style={[styles.footer, isMine ? styles.footerRight :styles.footerLeft]}>
-            <Text style={[styles.timeText, isMine ? styles.timeMe : styles.timeThem]}>{formatTime(msg.createdAt)}</Text>
+            <Text style={[styles.timeText, isMine ? styles.timeMe : styles.timeThem]}>{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: true}) : ""}</Text>
             {isMine && (
                 <Ionicons name={msg.read ? "checkmark-done" : "checkmark"} size={12} color={msg.read ? Colors.onPrimary : `${Colors.onPrimary}88`} />
             )}

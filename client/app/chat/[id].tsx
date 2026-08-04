@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { styles } from '../../assets/styles/ChatScreen.styles'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../../constants/Colors'
-import { formatTime } from "@/utils/formatTime";
+import { formatTime, useLiveTime } from "@/utils/formatTime";
 import Avatar from '../../components/Avatar'
 import Bubble from '../../components/Bubble'
 import * as ImagePicker from "expo-image-picker"
@@ -31,6 +31,7 @@ export default function ChatScreen() {
   const typingTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const partner = selectedConversation?.participant;
+  const timeTick = useLiveTime();
 
   // Load messages for this conversation 
   useEffect(() =>{
@@ -187,21 +188,22 @@ export default function ChatScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.headerName} numberOfLines={1}>
             {headerName}
-            <Text style={styles.headerHandle}>@{partner?.handle}</Text>
+            <Text style={styles.headerHandle}> @{partner?.handle}</Text>
           </Text>
           <Text style={[styles.headerSub, partner?.isOnline && {color: Colors.online}]}>{headerSub}</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.backBtn} >
-          <Ionicons name="call-outline" size={20} color={Colors.onSurfaceVariant}/>
-        </TouchableOpacity>
+            <Ionicons name="call-outline" size={20} color={Colors.onSurfaceVariant}/>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backBtn} >
-          <Ionicons name="videocam-outline" size={20} color={Colors.onSurfaceVariant}/>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.backBtn} onPress={deleteChat}>
-          <Ionicons name="trash-outline" size={20} color={Colors.onSurfaceVariant}/>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.backBtn} >
+            <Ionicons name="videocam-outline" size={20} color={Colors.onSurfaceVariant}/>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.backBtn} onPress={deleteChat}>
+            <Ionicons name="trash-outline" size={20} color={Colors.onSurfaceVariant}/>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -217,6 +219,7 @@ export default function ChatScreen() {
               ref={flatListRef}
               keyExtractor={(m)=> m._id}
               contentContainerStyle={styles.messageList}
+              extraData={timeTick}
               renderItem={({item: msg, index})=>{
                 const isMine = msg.sender === auth.user?._id;
                 const prev = messages[index -1];
@@ -242,7 +245,7 @@ export default function ChatScreen() {
                   const u = users.find((x)=>x._id === uid) || partner;
                   return(
                     <Text key={uid} style={styles.typingText}>
-                      {u?.name || "Someone"} is typing...
+                      typing...
                     </Text>
                   )
                 })}
