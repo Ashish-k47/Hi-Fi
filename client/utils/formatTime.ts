@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export function formatTime(isoString? : string | null) : string{
     if(!isoString) return "";
     const date = new Date(isoString);
@@ -17,4 +19,13 @@ export function formatTime(isoString? : string | null) : string{
         return date.toLocaleDateString([], {month: "short", day:"numeric"});
     }
     return date.toLocaleDateString([], {month: "short", day:"numeric"});
+}
+
+
+export function useLiveTime(intervalMs: number = 30000) {
+    const [, forceUpdate] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => forceUpdate((n) => n + 1), intervalMs);
+        return () => clearInterval(id);
+    }, [intervalMs]);
 }

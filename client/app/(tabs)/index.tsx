@@ -11,6 +11,7 @@ import StoriesBar from '../../components/StoriesBar';
 import StoryViewer from '../../components/StoryViewer';
 import ConvoItem from '../../components/ConvoItem';
 import { api, useApp } from '../../context/AppContext';
+import { useLiveTime } from '../../utils/formatTime'
 
 export default function MessagesScreen() {
   
@@ -18,6 +19,8 @@ export default function MessagesScreen() {
     const [loading, setLoading] = useState(false)
     const [selectedStory, setSelectedStory] = useState<UserStory | null>(null)
     const {setSelectedConversation, conversations, setConversations, selectedConversation} = useApp()
+
+    useLiveTime();
 
     const router = useRouter()
 

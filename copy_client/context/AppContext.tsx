@@ -50,6 +50,11 @@ export function AppProvider({children}: {children: ReactNode}){
     const[typingUsers, setTypingUsers] = useState<Record<string, boolean>>({})
     const wsRef = useRef<WebSocket | null>(null)
 
+        const selectedConversationRef = useRef(selectedConversation)
+    useEffect(() => {
+        selectedConversationRef.current = selectedConversation
+    }, [selectedConversation])
+
     const getTokenRef = useRef(getToken)
     useEffect(() =>{
         getTokenRef.current = getToken;
@@ -87,7 +92,7 @@ export function AppProvider({children}: {children: ReactNode}){
                 email: clerkUser.primaryEmailAddress?.emailAddress || "",
                 handle: clerkUser.username || clerkUser.primaryEmailAddress?.emailAddress.split("@")[0] || clerkUser.id,
                 avatar: clerkUser.imageUrl || "",
-                bio: (clerkUser.publicMetadata?.bio as string) || 'Hey there! I am using InstaChat.',
+                bio: (clerkUser.publicMetadata?.bio as string) || 'Hey there! I am using HiFi.',
                 isOnline: true,
                 lastSeen: new Date().toISOString(),
             }
@@ -156,7 +161,7 @@ export function AppProvider({children}: {children: ReactNode}){
                     if(event.type === "message"){
                         const incoming = event.payload as Message;
                         setMessages((prev) => {
-                            if (prev.length > 0 && prev[0].conversationId === incoming.conversationId){
+                            if (selectedConversationRef.current?._id === incoming.conversationId){
                                 return [...prev, incoming]
                             }
                             return prev;
@@ -176,6 +181,7 @@ export function AppProvider({children}: {children: ReactNode}){
 
                         })
                     }
+                    
 
                     if (event.type === "typing") {
                         const {senderId, isTyping } = event;
@@ -185,15 +191,22 @@ export function AppProvider({children}: {children: ReactNode}){
                     }
 
                     if(event.type === "online_status"){
-                        const {userId, isOnline} = event;
+                        const {userId, isOnline, lastSeen} = event;
                         if (userId && isOnline !== undefined) {
-                            setUsers((prev) => prev.map((u) => (u._id === userId ? {...u, isOnline} : u)));
+                            setUsers((prev) => prev.map((u) => (u._id === userId ? {...u, isOnline, ...(lastSeen ? {lastSeen} : {})} : u)));
                             setConversations((prev)=> prev.map((c)=>{
                                 if(c.participant?._id === userId){
-                                    return {...c, participant: {...c.participant, isOnline}}
+                                    return {...c, participant: {...c.participant, isOnline, ...(lastSeen ? {lastSeen} : {})}}
                                 }
                                 return c;
                             }))
+
+                            setSelectedConversation((prev) => {
+                                if (prev && prev.participant?._id === userId) {
+                                    return {...prev, participant: {...prev.participant, isOnline, ...(lastSeen ? {lastSeen} : {})}}
+                                }
+                                return prev;
+                            })
                         }
                     }
 
@@ -211,6 +224,13 @@ export function AppProvider({children}: {children: ReactNode}){
                                 return prev;
                             })
                             setUserStories((prev)=>prev.map((us) => (us.user._id === updated._id ? {...us, user: updated}: us)))
+                        }
+                    }
+
+                    if(event.type === "message_read"){
+                        const {conversationId} = event;
+                        if (conversationId) {
+                            setMessages((prev) => prev.map((m) => (m.conversationId === conversationId ? {...m, read: true} : m)))
                         }
                     }
 

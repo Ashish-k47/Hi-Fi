@@ -17,11 +17,12 @@ interface StoriesBarProps{
 export default function StoriesBar({onViewStory} : StoriesBarProps) {
 
     const [uploading, setUploading] = useState(false)
-    const {userStories, fetchStories} = useApp()
+    const {userStories, fetchStories, auth} = useApp()
 
     useEffect(() =>{
+        if (auth.loading) return;
         fetchStories()
-    }, [fetchStories])
+    }, [fetchStories, auth.loading])
 
     const pickAndUpload = async ()=> {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
